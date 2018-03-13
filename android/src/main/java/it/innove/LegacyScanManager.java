@@ -7,7 +7,17 @@ import com.facebook.react.bridge.*;
 
 import static com.facebook.react.bridge.UiThreadUtil.runOnUiThread;
 
+import android.os.Handler;
+import java.lang.Runnable;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 public class LegacyScanManager extends ScanManager {
+
+	private List<String> matchNames = null;
 
 	public LegacyScanManager(ReactApplicationContext reactContext, BleManager bleManager) {
 		super(reactContext, bleManager);
@@ -17,6 +27,7 @@ public class LegacyScanManager extends ScanManager {
 	public void stopScan(Callback callback) {
 		// update scanSessionId to prevent stopping next scan by running timeout thread
 		scanSessionId.incrementAndGet();
+		Log.i(bleManager.LOG_TAG, "[legacy] stopScan() scanSessionId [" + scanSessionId + "]");
 
 		getBluetoothAdapter().stopLeScan(mLeScanCallback);
 		callback.invoke();
@@ -32,9 +43,28 @@ public class LegacyScanManager extends ScanManager {
 					runOnUiThread(new Runnable() {
 						@Override
 						public void run() {
-							Log.i(bleManager.LOG_TAG, "DiscoverPeripheral: " + device.getName());
+							//-----------------------------------------------------------------
+							Map <Integer,String> ret = ParseRecord(scanRecord);
+							String localName = ret.get(0x09); // Hotfix
+							//-----------------------------------------------------------------
 							String address = device.getAddress();
-							Peripheral peripheral;
+							Peripheral peripheral = null;
+
+							//------------------------------------------------------------------------------------
+							// filter out not valid device
+							//------------------------------------------------------------------------------------
+							if (localName == null || localName.isEmpty() || address == null ||  address.isEmpty())
+							{
+								Log.i(bleManager.LOG_TAG, "[legacy] DiscoverPeripheral (ignored, invalid device): [" + device.getName() + "] localName=[" + localName + "] address:[" + address + "]");
+								return;
+							}
+							//------------------------------------------------------------------------------------
+							// filter by match names
+							//------------------------------------------------------------------------------------
+							if(matchNames!=null && !matchNames.contains(localName)){
+								Log.i(bleManager.LOG_TAG, "[legacy] DiscoverPeripheral (ignored, mismatch name): [" + device.getName() + "] localName=[" + localName + "] address:[" + address + "]");
+								return;
+							}c
 
 							if (!bleManager.peripherals.containsKey(address)) {
 								peripheral = new Peripheral(device, rssi, scanRecord, reactContext);
@@ -46,6 +76,13 @@ public class LegacyScanManager extends ScanManager {
 							}
 
 							WritableMap map = peripheral.asWritableMap();
+							//-----------------------------------------------------------------
+							// Hotfix: use the result.getScanRecord().getDeviceName() to replace
+							// the cached result.getDevice().getName()
+							// NOTE: the function BleManager.getDiscoveredPeripherals() and
+							// BleManager.getConnectedPeripherals() will not have this hotfix.
+							//-----------------------------------------------------------------
+							map.putString("name", localName);
 							bleManager.sendEvent("BleManagerDiscoverPeripheral", map);
 						}
 					});
@@ -61,38 +98,92 @@ public class LegacyScanManager extends ScanManager {
 		}
 		getBluetoothAdapter().startLeScan(mLeScanCallback);
 
+		//---------------add options match names for ble device----------
+		ReadableArray matchNamesReadableArray = options.getArray("matchNames");
+		matchNames = null;
+		if(matchNamesReadableArray != null && matchNamesReadableArray.size() > 0){
+			matchNames = new ArrayList<String>(matchNamesReadableArray.size());
+			for (int index = 0; index < matchNamesReadableArray.size(); index++) {
+				if(matchNamesReadableArray.getType(index) == ReadableType.String){
+					matchNames.add(matchNamesReadableArray.getString(index));
+				}else{
+					Log.d(bleManager.LOG_TAG, "Omitted matchNames value at index = "+index);
+				}
+			}
+		}
+
+
 		if (scanSeconds > 0) {
-			Thread thread = new Thread() {
+			final Handler mainHandler = new Handler(this.reactContext.getMainLooper());
+			mainHandler.post(new Runnable() {
+
 				private int currentScanSession = scanSessionId.incrementAndGet();
 
 				@Override
 				public void run() {
-
-					try {
-						Thread.sleep(scanSeconds * 1000);
-					} catch (InterruptedException ignored) {
-					}
-
-					runOnUiThread(new Runnable() {
+					Log.i(bleManager.LOG_TAG, "[legacy] stop thread create: currentScanSession [" + currentScanSession + "]");
+					mainHandler.postDelayed(new Runnable() {
 						@Override
 						public void run() {
-							BluetoothAdapter btAdapter = getBluetoothAdapter();
-							// check current scan session was not stopped
-							if (scanSessionId.intValue() == currentScanSession) {
-								if (btAdapter.getState() == BluetoothAdapter.STATE_ON) {
-									btAdapter.stopLeScan(mLeScanCallback);
+							try {
+								BluetoothAdapter btAdapter = getBluetoothAdapter();
+								// check current scan session was not stopped
+								if (scanSessionId.intValue() == currentScanSession) {
+									if (btAdapter.getState() == BluetoothAdapter.STATE_ON) {
+										Log.i(bleManager.LOG_TAG, "[legacy] stop thread wakeup: currentScanSession [" + currentScanSession + "] scanSessionId [" + scanSessionId.intValue() + "]");
+										btAdapter.stopLeScan(mLeScanCallback);
+									} else {
+										Log.i(bleManager.LOG_TAG, "[legacy] stop thread wakeup: currentScanSession [" + currentScanSession + "] but BT state is not ON");
+									}
+									WritableMap map = Arguments.createMap();
+									bleManager.sendEvent("BleManagerStopScan", map);
+								} else {
+									Log.i(bleManager.LOG_TAG, "[legacy] stop thread wakeup but found incorrect sessionId -- ignroed");
 								}
-								WritableMap map = Arguments.createMap();
-								bleManager.sendEvent("BleManagerStopScan", map);
+							} catch(Exception e) {
+								Log.i(bleManager.LOG_TAG, "[legacy] stop thread wakeup catch an exception");
 							}
 						}
-					});
-
+					}, scanSeconds * 1000);
 				}
-
-			};
-			thread.start();
+			});
 		}
+
 		callback.invoke();
 	}
+
+	/*
+        BLE Scan record parsing
+        inspired by:
+        http://stackoverflow.com/questions/22016224/ble-obtain-uuid-encoded-in-advertising-packet
+         */
+	private  Map <Integer,String>  ParseRecord(byte[] scanRecord){
+		Map <Integer,String> ret = new HashMap<Integer,String>();
+		int index = 0;
+		while (index < scanRecord.length) {
+			int length = scanRecord[index++];
+			//Zero value indicates that we are done with the record now
+			if (length == 0) break;
+
+			int type = scanRecord[index];
+			//if the type is zero, then we are pass the significant section of the data,
+			// and we are thud done
+			if (type == 0) break;
+
+			byte[] data = Arrays.copyOfRange(scanRecord, index + 1, index + length);
+			if(data != null && data.length > 0) {
+				// StringBuilder hex = new StringBuilder(data.length * 2);
+				// // the data appears to be there backwards
+				// for (int bb = data.length- 1; bb >= 0; bb--){
+				// 		hex.append(String.format("%02X", data[bb]));
+				// }
+				// ret.put(type,hex.toString());
+				ret.put(type,new String(data));
+			}
+			index += length;
+		}
+
+		return ret;
+	}
+
 }
