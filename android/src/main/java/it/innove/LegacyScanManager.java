@@ -64,7 +64,7 @@ public class LegacyScanManager extends ScanManager {
 							if(matchNames!=null && !matchNames.contains(localName)){
 								Log.i(bleManager.LOG_TAG, "[legacy] DiscoverPeripheral (ignored, mismatch name): [" + device.getName() + "] localName=[" + localName + "] address:[" + address + "]");
 								return;
-							}c
+							}
 
 							if (!bleManager.peripherals.containsKey(address)) {
 								peripheral = new Peripheral(device, rssi, scanRecord, reactContext);
