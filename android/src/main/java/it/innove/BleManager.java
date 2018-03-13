@@ -235,6 +235,23 @@ class BleManager extends ReactContextBaseJavaModule implements ActivityEventList
 		peripheral.connect(callback, getCurrentActivity());
 	}
 
+
+	/*modified connect*/
+	@ReactMethod
+	public void connectWithPriority(String peripheralUUID, int priority, Callback callback) {
+		Log.d(LOG_TAG, "Connect to: " + peripheralUUID);
+
+		Peripheral peripheral = retrieveOrCreatePeripheral(peripheralUUID);
+		if (peripheral == null) {
+			callback.invoke("Invalid peripheral uuid");
+			return;
+		}
+
+		peripheral.setConnectionPriority(priority);
+		peripheral.connect(callback, getCurrentActivity());
+	}
+
+
 	@ReactMethod
 	public void disconnect(String peripheralUUID, Callback callback) {
 		Log.d(LOG_TAG, "Disconnect from: " + peripheralUUID);

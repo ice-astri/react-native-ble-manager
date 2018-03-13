@@ -49,8 +49,12 @@ public class Peripheral extends BluetoothGattCallback {
 	private Callback writeCallback;
 	private Callback registerNotifyCallback;
 	private Callback requestMTUCallback;
+	private Callback requestConnectionPriorityCallback;
 
 	private List<byte[]> writeQueue = new ArrayList<>();
+
+
+	private int connectionPriority;
 
 	public Peripheral(BluetoothDevice device, int advertisingRSSI, byte[] scanRecord, ReactContext reactContext) {
 
@@ -58,12 +62,17 @@ public class Peripheral extends BluetoothGattCallback {
 		this.advertisingRSSI = advertisingRSSI;
 		this.advertisingData = scanRecord;
 		this.reactContext = reactContext;
-
+		this.connectionPriority = BluetoothGatt.CONNECTION_PRIORITY_BALANCED;
 	}
 
 	public Peripheral(BluetoothDevice device, ReactContext reactContext) {
 		this.device = device;
 		this.reactContext = reactContext;
+		this.connectionPriority = BluetoothGatt.CONNECTION_PRIORITY_BALANCED;
+	}
+
+	public void setConnectionPriority(int priority){
+		this.connectionPriority = priority;
 	}
 
 	private void sendEvent(String eventName, @Nullable WritableMap params) {
@@ -234,6 +243,21 @@ public class Peripheral extends BluetoothGattCallback {
 
 		if (newState == BluetoothGatt.STATE_CONNECTED) {
 
+			//try to set the connection priority if support
+			if (Build.VERSION.SDK_INT >= LOLLIPOP) {
+				if(this.connectionPriority >= BluetoothGatt.CONNECTION_PRIORITY_BALANCED && this.connectionPriority <= BluetoothGatt.CONNECTION_PRIORITY_LOW_POWER){
+					if(gatt.requestConnectionPriority(this.connectionPriority)){
+						Log.d(BleManager.LOG_TAG, "Success request connection priority, new prority: " + this.connectionPriority);
+					}else{
+						Log.d(BleManager.LOG_TAG, "Fail to request connection priority...");
+					}
+				}else{
+					Log.d(BleManager.LOG_TAG, "Skip request connection priority as invalid connection priority");
+				}
+			} else {
+				callback.invoke("The requestMTU require at least 21 API level", null);
+			}
+
 			connected = true;
 
 			sendConnectionEvent(device, "BleManagerConnectPeripheral");
@@ -273,6 +297,7 @@ public class Peripheral extends BluetoothGattCallback {
 			readRSSICallback = null;
 			registerNotifyCallback = null;
 			requestMTUCallback = null;
+
 		}
 
 	}
@@ -683,6 +708,7 @@ public class Peripheral extends BluetoothGattCallback {
 			callback.invoke("The requestMTU require at least 21 API level", null);
 		}
 	}
+
 
 	@Override
 	public void onMtuChanged(BluetoothGatt gatt, int mtu, int status) {
