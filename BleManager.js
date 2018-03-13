@@ -77,6 +77,20 @@ class BleManager  {
     });
   }
 
+
+  connectWithPriority(peripheralId, priority) {
+    return new Promise((fulfill, reject) => {
+      bleManager.connectWithPriority(peripheralId, priority, (error) => {
+        if (error) {
+          reject(error);
+        } else {
+          fulfill();
+        }
+      });
+    });
+  }
+
+
   connect(peripheralId) {
     return new Promise((fulfill, reject) => {
       bleManager.connect(peripheralId, (error) => {
