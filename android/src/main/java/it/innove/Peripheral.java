@@ -255,7 +255,7 @@ public class Peripheral extends BluetoothGattCallback {
 					Log.d(BleManager.LOG_TAG, "Skip request connection priority as invalid connection priority");
 				}
 			} else {
-				callback.invoke("The requestMTU require at least 21 API level", null);
+				Log.d(BleManager.LOG_TAG, "Skip request connection priority as requestConnectionPriority require at least 21 API level");
 			}
 
 			connected = true;
