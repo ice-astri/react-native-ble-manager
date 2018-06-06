@@ -253,7 +253,7 @@ class BleManager extends ReactContextBaseJavaModule implements ActivityEventList
 
 
 	@ReactMethod
-	public void disconnect(String peripheralUUID, Callback callback) {
+	public void (String peripheralUUID, Callback callback) {
 		Log.d(LOG_TAG, "Disconnect from: " + peripheralUUID);
 
 		Peripheral peripheral = peripherals.get(peripheralUUID);
@@ -503,6 +503,7 @@ class BleManager extends ReactContextBaseJavaModule implements ActivityEventList
 		List<BluetoothDevice> periperals = getBluetoothManager().getConnectedDevices(GATT);
 		for (BluetoothDevice entry : periperals) {
 			Peripheral peripheral = new Peripheral(entry, reactContext);
+			peripheral.connect(null, getCurrentActivity());
 			peripheral.disconnect();
 		}
 		return true;
