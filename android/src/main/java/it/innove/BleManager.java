@@ -115,7 +115,7 @@ class BleManager extends ReactContextBaseJavaModule implements ActivityEventList
 	}
 
 	@ReactMethod
-	public void isBleManagerStarted(){
+	public boolean isBleManagerStarted(){
 		Log.d(LOG_TAG, "isBleManagerStarted");
 		return (scanManager!=null);
 	}
