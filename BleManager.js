@@ -182,6 +182,10 @@ class BleManager  {
     });
   }
 
+  isBleManagerStarted() {
+    return bleManager.isBleManagerStarted();
+  }
+
   scan(serviceUUIDs, seconds, allowDuplicates, scanningOptions={}) {
     return new Promise((fulfill, reject) => {
       if (allowDuplicates == null) {
