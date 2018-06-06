@@ -182,8 +182,8 @@ class BleManager  {
     });
   }
 
-  isBleManagerStarted() {
-    return bleManager.isBleManagerStarted();
+  disconnectAllConnectedPeripherals() {
+    return bleManager.disconnectAllConnectedPeripherals();
   }
 
   scan(serviceUUIDs, seconds, allowDuplicates, scanningOptions={}) {

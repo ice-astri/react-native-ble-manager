@@ -115,12 +115,6 @@ class BleManager extends ReactContextBaseJavaModule implements ActivityEventList
 	}
 
 	@ReactMethod
-	public boolean isBleManagerStarted(){
-		Log.d(LOG_TAG, "isBleManagerStarted");
-		return (scanManager!=null);
-	}
-
-	@ReactMethod
 	public void enableBluetooth(Callback callback) {
 		if (getBluetoothAdapter() == null) {
 			Log.d(LOG_TAG, "No bluetooth support");
@@ -501,6 +495,17 @@ class BleManager extends ReactContextBaseJavaModule implements ActivityEventList
 			map.pushMap(jsonBundle);
 		}
 		callback.invoke(null, map);
+	}
+
+	@ReactMethod
+	public boolean disconnectAllConnectedPeripherals() {
+		Log.d(LOG_TAG, "Disconnect all connected peripherals");
+		List<BluetoothDevice> periperals = getBluetoothManager().getConnectedDevices(GATT);
+		for (BluetoothDevice entry : periperals) {
+			Peripheral peripheral = new Peripheral(entry, reactContext);
+			peripheral.disconnect();
+		}
+		return true;
 	}
 
 	@ReactMethod
