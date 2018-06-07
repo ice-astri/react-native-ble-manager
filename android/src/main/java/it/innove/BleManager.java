@@ -121,21 +121,8 @@ class BleManager extends ReactContextBaseJavaModule implements ActivityEventList
 			callback.invoke("No bluetooth support");
 			return;
 		}
-		if (!getBluetoothAdapter().isEnabled()) {
-			// enableBluetoothCallback = callback;
-			// Intent intentEnable = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-			// if (getCurrentActivity() == null)
-			// 	callback.invoke("Current activity not available");
-			// else
-			// 	getCurrentActivity().startActivityForResult(intentEnable, ENABLE_REQUEST);
-			if (getCurrentActivity() == null)
-				callback.invoke("Current activity not available");
-			else {
-				getBluetoothAdapter().enable();
-				callback.invoke();
-			}
-		} else
-			callback.invoke();
+		if (!getBluetoothAdapter().isEnabled()) { getBluetoothAdapter().enable(); }
+		callback.invoke();
 	}
 
 	@ReactMethod
@@ -145,15 +132,8 @@ class BleManager extends ReactContextBaseJavaModule implements ActivityEventList
 			callback.invoke("No bluetooth support");
 			return;
 		}
-		if (getBluetoothAdapter().isEnabled()) {
-			if (getCurrentActivity() == null)
-				callback.invoke("Current activity not available");
-			else {
-				getBluetoothAdapter().disable();
-				callback.invoke();
-			}
-		} else
-			callback.invoke();
+		if (getBluetoothAdapter().isEnabled()) { getBluetoothAdapter().disable(); } 
+		callback.invoke();
 	}
 
 	@ReactMethod
